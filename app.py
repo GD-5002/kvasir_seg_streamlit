@@ -2,14 +2,15 @@ import streamlit as st
 from PIL import Image
 import os
 import tempfile
-from ultralytics import YOLO
 import gdown
+import tensorflow as tf
+import numpy as np
 
 # ----------------------
 # STREAMLIT CONFIG
 # ----------------------
 st.set_page_config(page_title="Kvasir-SEG Polyp Detection", layout="centered")
-st.title("Kvasir-SEG Polyp Detection (YOLOv11)")
+st.title("Kvasir-SEG Polyp Detection (Keras)")
 
 # ----------------------
 # MODEL SETUP
@@ -20,14 +21,14 @@ MODEL_DRIVE_URL = f"https://drive.google.com/uc?id={FILE_ID}"
 
 # Download model if not present
 if not os.path.exists(MODEL_PATH):
-    st.info("Downloading YOLOv11 model (~42 MB)...")
+    st.info("Downloading Keras model (~42 MB)...")
     gdown.download(MODEL_DRIVE_URL, MODEL_PATH, quiet=False)
     st.success("Model downloaded successfully!")
 
 # Load model (cached for faster repeated runs)
 @st.cache_resource(show_spinner=True)
 def load_model():
-    model = YOLO(MODEL_PATH)
+    model = tf.keras.models.load_model(MODEL_PATH)
     return model
 
 model = load_model()
@@ -46,27 +47,41 @@ if uploaded_file is not None:
         temp_image_path = tmp_file.name
         image.save(temp_image_path)
 
+    # Preprocess image for model
+    input_size = (256, 256)  # Change if your model uses a different input size
+    img_resized = image.resize(input_size)
+    img_array = np.array(img_resized) / 255.0  # Normalize to [0,1]
+    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
+
     # ----------------------
     # PREDICTION
     # ----------------------
     with st.spinner("Detecting polyps..."):
-        results = model(temp_image_path)
+        pred_mask = model.predict(img_array)[0]  # Shape: (H, W, 1) or (H, W)
 
-    # Display results image
-    result_img = results[0].plot()
-    st.image(result_img, caption="Detected Polyps", use_column_width=True)
+        # If mask has a single channel, squeeze it
+        if pred_mask.shape[-1] == 1:
+            pred_mask = np.squeeze(pred_mask, axis=-1)
 
-    # Show detection details
-    st.subheader("Detection Details")
-    if results[0].boxes.data.shape[0] == 0:
-        st.write("No polyps detected.")
-    else:
-        for det in results[0].boxes.data.tolist():
-            x1, y1, x2, y2, score, cls = det
-            st.write(
-                f"Class: {int(cls)}, Confidence: {score:.2f}, "
-                f"BBox: [{int(x1)},{int(y1)},{int(x2)},{int(y2)}]"
-            )
+        # Convert mask to 0-255 for display
+        mask_img = (pred_mask * 255).astype(np.uint8)
+        mask_img_pil = Image.fromarray(mask_img)
+        mask_img_pil = mask_img_pil.resize(image.size)  # Scale back to original image size
+
+    # ----------------------
+    # DISPLAY RESULTS
+    # ----------------------
+    st.subheader("Predicted Mask")
+    st.image(mask_img_pil, use_column_width=True)
+
+    # Overlay mask on original image
+    overlay = image.copy()
+    overlay_array = np.array(overlay)
+    overlay_array[pred_mask > 0.5] = [255, 0, 0]  # Highlight polyps in red
+    overlay_img = Image.fromarray(overlay_array)
+
+    st.subheader("Overlay on Original Image")
+    st.image(overlay_img, use_column_width=True)
 
     # Clean up temp file
     os.remove(temp_image_path)
