@@ -4,7 +4,6 @@ import os
 import tempfile
 import tensorflow as tf
 import numpy as np
-import requests
 
 # ----------------------
 # STREAMLIT CONFIG
@@ -15,16 +14,12 @@ st.title("Kvasir-SEG Polyp Detection (Keras)")
 # ----------------------
 # MODEL SETUP
 # ----------------------
-MODEL_PATH = "best_model.h5"
-GITHUB_MODEL_URL = "https://raw.githubusercontent.com/GD-5002/kvasir_seg_streamlit/main/best_model.h5"
+MODEL_PATH = "best_model.h5"  # Make sure this file is in the same repo/folder
 
-# Download model from GitHub if not present
+# Check if model exists
 if not os.path.exists(MODEL_PATH):
-    st.info("Downloading Keras model (~42 MB) from GitHub...")
-    r = requests.get(GITHUB_MODEL_URL)
-    with open(MODEL_PATH, "wb") as f:
-        f.write(r.content)
-    st.success("Model downloaded successfully!")
+    st.error(f"Model file '{MODEL_PATH}' not found in the repository!")
+    st.stop()
 
 # Load model (cached for faster repeated runs)
 @st.cache_resource(show_spinner=True)
