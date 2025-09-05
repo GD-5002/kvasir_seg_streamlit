@@ -2,9 +2,9 @@ import streamlit as st
 from PIL import Image
 import os
 import tempfile
-import gdown
 import tensorflow as tf
 import numpy as np
+import requests
 
 # ----------------------
 # STREAMLIT CONFIG
@@ -16,17 +16,15 @@ st.title("Kvasir-SEG Polyp Detection (Keras)")
 # MODEL SETUP
 # ----------------------
 MODEL_PATH = "best_model.h5"
-FILE_ID = "1azV2zxhTPzSSx13BK9nVO_x9aatTldzs"  # Google Drive file ID
-MODEL_DRIVE_URL = f"https://drive.google.com/uc?id={FILE_ID}"
+GITHUB_MODEL_URL = "https://raw.githubusercontent.com/GD-5002/kvasir_seg_streamlit/main/best_model.h5"
 
-# Download model if not present
-if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000:
-    st.info("Downloading Keras model (~42 MB)...")
-    gdown.download(MODEL_DRIVE_URL, MODEL_PATH, quiet=False, fuzzy=True)
-    if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000:
-        st.error("Failed to download a valid model file. Check Google Drive link permissions!")
-    else:
-        st.success("Model downloaded successfully!")
+# Download model from GitHub if not present
+if not os.path.exists(MODEL_PATH):
+    st.info("Downloading Keras model (~42 MB) from GitHub...")
+    r = requests.get(GITHUB_MODEL_URL)
+    with open(MODEL_PATH, "wb") as f:
+        f.write(r.content)
+    st.success("Model downloaded successfully!")
 
 # Load model (cached for faster repeated runs)
 @st.cache_resource(show_spinner=True)
