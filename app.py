@@ -18,7 +18,7 @@ st.title("Kvasir-SEG Polyp Detection (Keras)")
 MODEL_PATH = "best_model.h5"
 MODEL_URL = "https://www.dropbox.com/scl/fi/o2pbksu4nvk010fzn4o7p/best_model.h5?rlkey=qx0tc3gusdkxhg8wopbwl8q94&st=qvrey245&dl=1"
 
-# Download model if not present
+# Download model if not present or corrupted
 if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000:
     st.info("Downloading Keras model (~42 MB) from Dropbox...")
     try:
@@ -28,6 +28,10 @@ if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000:
             for chunk in r.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
+        # Verify downloaded size
+        if os.path.getsize(MODEL_PATH) < 1000:
+            st.error("Downloaded file is too small. Dropbox may not be providing the raw binary.")
+            st.stop()
         st.success("Model downloaded successfully!")
     except Exception as e:
         st.error(f"Failed to download the model: {e}")
