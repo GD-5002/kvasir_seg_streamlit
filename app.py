@@ -6,22 +6,25 @@ from ultralytics import YOLO
 import gdown
 
 # ----------------------
-# CONFIG
+# STREAMLIT CONFIG
 # ----------------------
 st.set_page_config(page_title="Kvasir-SEG Polyp Detection", layout="centered")
 st.title("Kvasir-SEG Polyp Detection (YOLOv11)")
 
-# Path to model
+# ----------------------
+# MODEL SETUP
+# ----------------------
 MODEL_PATH = "best_model.h5"
+FILE_ID = "1azV2zxhTPzSSx13BK9nVO_x9aatTldzs"  # Your Google Drive file ID
+MODEL_DRIVE_URL = f"https://drive.google.com/uc?id={FILE_ID}"
 
-# Optional: Download from Google Drive if model not present
+# Download model if not present
 if not os.path.exists(MODEL_PATH):
-    MODEL_DRIVE_URL = "https://drive.google.com/uc?id=YOUR_FILE_ID"  # Replace with your file ID
-    st.info("Downloading YOLOv11 model...")
+    st.info("Downloading YOLOv11 model (~42 MB)...")
     gdown.download(MODEL_DRIVE_URL, MODEL_PATH, quiet=False)
     st.success("Model downloaded successfully!")
 
-# Load YOLO model
+# Load model (cached for faster repeated runs)
 @st.cache_resource(show_spinner=True)
 def load_model():
     model = YOLO(MODEL_PATH)
@@ -30,7 +33,7 @@ def load_model():
 model = load_model()
 
 # ----------------------
-# UPLOAD IMAGE
+# IMAGE UPLOAD
 # ----------------------
 uploaded_file = st.file_uploader("Upload an endoscopy image", type=["jpg", "jpeg", "png"])
 
@@ -49,7 +52,7 @@ if uploaded_file is not None:
     with st.spinner("Detecting polyps..."):
         results = model(temp_image_path)
 
-    # Display results
+    # Display results image
     result_img = results[0].plot()
     st.image(result_img, caption="Detected Polyps", use_column_width=True)
 
@@ -60,7 +63,10 @@ if uploaded_file is not None:
     else:
         for det in results[0].boxes.data.tolist():
             x1, y1, x2, y2, score, cls = det
-            st.write(f"Class: {int(cls)}, Confidence: {score:.2f}, BBox: [{int(x1)},{int(y1)},{int(x2)},{int(y2)}]")
+            st.write(
+                f"Class: {int(cls)}, Confidence: {score:.2f}, "
+                f"BBox: [{int(x1)},{int(y1)},{int(x2)},{int(y2)}]"
+            )
 
     # Clean up temp file
     os.remove(temp_image_path)
