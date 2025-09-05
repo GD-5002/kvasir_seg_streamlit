@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image
 import os
 import tempfile
-import gdown
+import requests
 import tensorflow as tf
 import numpy as np
 
@@ -16,20 +16,25 @@ st.title("Kvasir-SEG Polyp Detection (Keras)")
 # MODEL SETUP
 # ----------------------
 MODEL_PATH = "best_model.h5"
-FILE_ID = "1azV2zxhTPzSSx13BK9nVO_x9aatTldzs"  # Your Google Drive file ID
-MODEL_URL = f"https://drive.google.com/uc?id={FILE_ID}"
+FILE_ID = "1azV2zxhTPzSSx13BK9nVO_x9aatTldzs"
+MODEL_URL = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
 
-# Download model if not present
+# Download model if not present or corrupted
 if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000:
     st.info("Downloading Keras model (~42 MB) from Google Drive...")
-    gdown.download(MODEL_URL, MODEL_PATH, quiet=False, fuzzy=True)
-    if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000:
-        st.error("Failed to download a valid model file. Check Google Drive link permissions!")
-        st.stop()
-    else:
+    try:
+        r = requests.get(MODEL_URL, stream=True)
+        r.raise_for_status()
+        with open(MODEL_PATH, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
         st.success("Model downloaded successfully!")
+    except Exception as e:
+        st.error(f"Failed to download the model: {e}")
+        st.stop()
 
-# Load model (cached)
+# Load model (cached for repeated use)
 @st.cache_resource(show_spinner=True)
 def load_model():
     try:
@@ -41,7 +46,7 @@ def load_model():
 
 model = load_model()
 if model is None:
-    st.stop()  # Stop app if model fails to load
+    st.stop()
 
 # ----------------------
 # IMAGE UPLOAD
@@ -57,11 +62,11 @@ if uploaded_file is not None:
         temp_image_path = tmp_file.name
         image.save(temp_image_path)
 
-    # Preprocess image for model
-    input_size = (256, 256)  # Adjust according to your model's input
+    # Preprocess image
+    input_size = (256, 256)  # Adjust according to model input
     img_resized = image.resize(input_size)
-    img_array = np.array(img_resized) / 255.0  # Normalize
-    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
+    img_array = np.array(img_resized) / 255.0
+    img_array = np.expand_dims(img_array, axis=0)
 
     # ----------------------
     # PREDICTION
@@ -69,11 +74,9 @@ if uploaded_file is not None:
     with st.spinner("Detecting polyps..."):
         pred_mask = model.predict(img_array)[0]
 
-        # Squeeze single channel if needed
         if pred_mask.shape[-1] == 1:
             pred_mask = np.squeeze(pred_mask, axis=-1)
 
-        # Convert mask to 0-255 and resize to original image
         mask_img = (pred_mask * 255).astype(np.uint8)
         mask_img_pil = Image.fromarray(mask_img)
         mask_img_pil = mask_img_pil.resize(image.size)
@@ -84,7 +87,6 @@ if uploaded_file is not None:
     st.subheader("Predicted Mask")
     st.image(mask_img_pil, use_column_width=True)
 
-    # Overlay mask on original image
     overlay = image.copy()
     overlay_array = np.array(overlay)
     overlay_array[pred_mask > 0.5] = [255, 0, 0]  # Highlight polyps in red
@@ -93,5 +95,4 @@ if uploaded_file is not None:
     st.subheader("Overlay on Original Image")
     st.image(overlay_img, use_column_width=True)
 
-    # Clean up temp file
     os.remove(temp_image_path)
