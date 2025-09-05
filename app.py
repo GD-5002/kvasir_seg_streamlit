@@ -16,12 +16,11 @@ st.title("Kvasir-SEG Polyp Detection (Keras)")
 # MODEL SETUP
 # ----------------------
 MODEL_PATH = "best_model.h5"
-FILE_ID = "1azV2zxhTPzSSx13BK9nVO_x9aatTldzs"
-MODEL_URL = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
+MODEL_URL = "https://www.dropbox.com/scl/fi/o2pbksu4nvk010fzn4o7p/best_model.h5?rlkey=qx0tc3gusdkxhg8wopbwl8q94&st=qvrey245&dl=1"
 
-# Download model if not present or corrupted
+# Download model if not present
 if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000:
-    st.info("Downloading Keras model (~42 MB) from Google Drive...")
+    st.info("Downloading Keras model (~42 MB) from Dropbox...")
     try:
         r = requests.get(MODEL_URL, stream=True)
         r.raise_for_status()
@@ -34,7 +33,7 @@ if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000:
         st.error(f"Failed to download the model: {e}")
         st.stop()
 
-# Load model (cached for repeated use)
+# Load model (cached)
 @st.cache_resource(show_spinner=True)
 def load_model():
     try:
@@ -63,14 +62,12 @@ if uploaded_file is not None:
         image.save(temp_image_path)
 
     # Preprocess image
-    input_size = (256, 256)  # Adjust according to model input
+    input_size = (256, 256)
     img_resized = image.resize(input_size)
     img_array = np.array(img_resized) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
 
-    # ----------------------
-    # PREDICTION
-    # ----------------------
+    # Prediction
     with st.spinner("Detecting polyps..."):
         pred_mask = model.predict(img_array)[0]
 
@@ -81,15 +78,13 @@ if uploaded_file is not None:
         mask_img_pil = Image.fromarray(mask_img)
         mask_img_pil = mask_img_pil.resize(image.size)
 
-    # ----------------------
-    # DISPLAY RESULTS
-    # ----------------------
+    # Display results
     st.subheader("Predicted Mask")
     st.image(mask_img_pil, use_column_width=True)
 
     overlay = image.copy()
     overlay_array = np.array(overlay)
-    overlay_array[pred_mask > 0.5] = [255, 0, 0]  # Highlight polyps in red
+    overlay_array[pred_mask > 0.5] = [255, 0, 0]
     overlay_img = Image.fromarray(overlay_array)
 
     st.subheader("Overlay on Original Image")
