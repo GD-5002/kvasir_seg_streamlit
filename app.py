@@ -2,6 +2,7 @@ import streamlit as st
 from PIL import Image
 import os
 import tempfile
+import gdown
 import tensorflow as tf
 import numpy as np
 
@@ -14,14 +15,21 @@ st.title("Kvasir-SEG Polyp Detection (Keras)")
 # ----------------------
 # MODEL SETUP
 # ----------------------
-MODEL_PATH = "best_model.h5"  # Make sure this file is in the same repo/folder
+MODEL_PATH = "best_model.h5"
+FILE_ID = "1azV2zxhTPzSSx13BK9nVO_x9aatTldzs"  # Your Google Drive file ID
+MODEL_URL = f"https://drive.google.com/uc?id={FILE_ID}"
 
-# Check if model exists
-if not os.path.exists(MODEL_PATH):
-    st.error(f"Model file '{MODEL_PATH}' not found in the repository!")
-    st.stop()
+# Download model if not present
+if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000:
+    st.info("Downloading Keras model (~42 MB) from Google Drive...")
+    gdown.download(MODEL_URL, MODEL_PATH, quiet=False, fuzzy=True)
+    if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000:
+        st.error("Failed to download a valid model file. Check Google Drive link permissions!")
+        st.stop()
+    else:
+        st.success("Model downloaded successfully!")
 
-# Load model (cached for faster repeated runs)
+# Load model (cached)
 @st.cache_resource(show_spinner=True)
 def load_model():
     try:
