@@ -16,22 +16,31 @@ st.title("Kvasir-SEG Polyp Detection (Keras)")
 # MODEL SETUP
 # ----------------------
 MODEL_PATH = "best_model.h5"
-FILE_ID = "1azV2zxhTPzSSx13BK9nVO_x9aatTldzs"  # Your Google Drive file ID
+FILE_ID = "1azV2zxhTPzSSx13BK9nVO_x9aatTldzs"  # Google Drive file ID
 MODEL_DRIVE_URL = f"https://drive.google.com/uc?id={FILE_ID}"
 
 # Download model if not present
-if not os.path.exists(MODEL_PATH):
+if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000:
     st.info("Downloading Keras model (~42 MB)...")
-    gdown.download(MODEL_DRIVE_URL, MODEL_PATH, quiet=False)
-    st.success("Model downloaded successfully!")
+    gdown.download(MODEL_DRIVE_URL, MODEL_PATH, quiet=False, fuzzy=True)
+    if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000:
+        st.error("Failed to download a valid model file. Check Google Drive link permissions!")
+    else:
+        st.success("Model downloaded successfully!")
 
 # Load model (cached for faster repeated runs)
 @st.cache_resource(show_spinner=True)
 def load_model():
-    model = tf.keras.models.load_model(MODEL_PATH)
-    return model
+    try:
+        model = tf.keras.models.load_model(MODEL_PATH)
+        return model
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        return None
 
 model = load_model()
+if model is None:
+    st.stop()  # Stop app if model fails to load
 
 # ----------------------
 # IMAGE UPLOAD
@@ -48,25 +57,25 @@ if uploaded_file is not None:
         image.save(temp_image_path)
 
     # Preprocess image for model
-    input_size = (256, 256)  # Change if your model uses a different input size
+    input_size = (256, 256)  # Adjust according to your model's input
     img_resized = image.resize(input_size)
-    img_array = np.array(img_resized) / 255.0  # Normalize to [0,1]
+    img_array = np.array(img_resized) / 255.0  # Normalize
     img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
 
     # ----------------------
     # PREDICTION
     # ----------------------
     with st.spinner("Detecting polyps..."):
-        pred_mask = model.predict(img_array)[0]  # Shape: (H, W, 1) or (H, W)
+        pred_mask = model.predict(img_array)[0]
 
-        # If mask has a single channel, squeeze it
+        # Squeeze single channel if needed
         if pred_mask.shape[-1] == 1:
             pred_mask = np.squeeze(pred_mask, axis=-1)
 
-        # Convert mask to 0-255 for display
+        # Convert mask to 0-255 and resize to original image
         mask_img = (pred_mask * 255).astype(np.uint8)
         mask_img_pil = Image.fromarray(mask_img)
-        mask_img_pil = mask_img_pil.resize(image.size)  # Scale back to original image size
+        mask_img_pil = mask_img_pil.resize(image.size)
 
     # ----------------------
     # DISPLAY RESULTS
