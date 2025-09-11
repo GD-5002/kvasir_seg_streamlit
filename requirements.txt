@@ -1,13 +1,12 @@
 # Streamlit frontend
 streamlit==1.26.0
-rich==14.1.0
 markdown-it-py==4.0.0
 mdurl==0.1.2
 pygments==2.19.2
 
 # YOLO / Deep Learning
 torch==2.8.0
-torchvision==0.15.1
+torchvision==0.18.1
 ultralytics==8.3.0
 
 # Image processing
