@@ -1,22 +1,14 @@
-# Streamlit
+# Streamlit and dependencies
 streamlit==1.26.0
 
-# Ultralytics YOLO
-ultralytics==8.4.0
+# YOLO / segmentation
+ultralytics==8.3.0
 
-# PyTorch (compatible with Python 3.13)
+# PyTorch compatible with Python 3.12
 torch==2.8.0
-torchvision==0.17.0
-torchaudio==2.8.0
+torchvision==0.15.1
 
 # Other dependencies
-numpy==1.26.5
-pandas==2.1.0
-opencv-python==4.8.1.78
-Pillow==9.5.0
-
-# For nicer logging
-rich==14.1.0
-markdown-it-py==4.0.0
-mdurl==0.1.2
-pygments==2.19.2
+opencv-python
+Pillow
+numpy
